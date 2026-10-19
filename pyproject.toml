@@ -1,0 +1,21 @@
+[project]
+name = "mcp-poc"
+version = "0.1.0"
+description = "MCP POC project dedicated to get a first glance on what are MCPs and how do they work locally"
+readme = "README.md"
+authors = [
+    { name = "Inm0rt4LKoff33" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "fastmcp>=3.4.9",
+    "mcp[cli]>=1.12.0,<2",
+    "ytmusicapi>=1.12.3",
+]
+
+[project.scripts]
+mcp-poc = "mcp_poc:main"
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14.0"]
+build-backend = "uv_build"

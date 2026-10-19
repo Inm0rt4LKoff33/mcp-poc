@@ -1,0 +1,34 @@
+{
+  "servers": {
+    "calc-mcp-stdio": {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "${workspaceFolder}",
+        "fastmcp",
+        "run",
+        "src/fastmcp-calculator.py",
+        "-t",
+        "stdio",
+        "--no-banner"
+      ]
+    },
+    "ytmusic-finder" : {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "${workspaceFolder}",
+        "fastmcp",
+        "run",
+        "src/ytmusic-finder.py",
+        "-t",
+        "stdio",
+        "--no-banner"
+      ]
+    }
+  }
+}
