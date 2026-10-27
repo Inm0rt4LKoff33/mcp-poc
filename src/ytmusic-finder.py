@@ -1,7 +1,7 @@
 from fastmcp import FastMCP
 from ytmusicapi import YTMusic
 
-mcp = FastMCP(name="YouTube Music Finder")
+mcp = FastMCP(name="YouTube Music Finder", version="0.1.0")
 yt = YTMusic()
 
 @mcp.tool()

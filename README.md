@@ -70,6 +70,47 @@ mcp-poc/
 └── uv.lock                     # Versiones exactas de las dependencias
 ```
 
+## Arquitectura
+```mermaid
+flowchart LR
+    subgraph Desktop["Host: Claude Desktop"]
+        M1[Modelo: Claude]
+        C1[Client]
+        M1 --> C1
+    end
+
+    subgraph VSCode["Host: VS Code"]
+        M2[Modelo: Copilot]
+        C2[Client]
+        C3[Client]
+        M2 --> C2
+        M2 --> C3
+    end
+
+    S1[ytmusic-finder]
+    S2[calc-mcp-stdio]
+
+    C1 -- STDIO --> S1
+    C2 -- STDIO --> S2
+    C3 -- STDIO --> S1
+```
+
+### Diferencia entre cliente y host
+
+Cuando se habla de la comunicación entre un cliente MCP y un servidor MCP, hay que diferenciar entre cliente y host, que a primera vista parecen el mismo término.
+
+El host es la aplicación que utiliza el usuario final, la persona que consumirá y hará llamados a las tools del MCP por medio del modelo definido (Claude, Gemini, ChatGPT, Copilot, etc.).
+
+El cliente MCP es un componente interno del host: cuando se inicia el host, el cliente se ejecuta por debajo para conectarse con un servidor MCP.
+
+En cuanto a la diferencia entre agente y cliente, el agente es el modelo que se comunica con el cliente MCP para consumir las tools programadas en el servidor MCP. Es el agente quien decide qué tools utilizar, y el cliente, en segundo plano, envía la petición de uso de la tool al servidor MCP.
+
+Cada cliente se conecta a un único servidor (relación 1:1). Con stdio, además, cada cliente lanza su propio proceso del servidor.
+
+Cuando se inicia el host, ya sea Claude Desktop, VS Code u otro host similar, se hace la llamada `initialize` con el servidor. En ella, ambos extremos envían la información sobre quién es el cliente (`clientInfo`) y quién es el servidor (`serverInfo`), así como la versión del protocolo de comunicación y las capacidades que soporta cada uno.
+
+Una vez establecida la comunicación, el cliente le pide al servidor sus tools, resources y prompts sin que el usuario haya hecho ninguna petición. En el momento en que el host requiere utilizar alguna capacidad del servidor, este último recibe que el host asociado está haciendo un llamado a la utilización de una tool (envía `tools/call`). Posteriormente, el servidor ejecuta la tool y responde al cliente con el resultado de la petición.
+
 ## Instalación local
 
 ### Requisitos
