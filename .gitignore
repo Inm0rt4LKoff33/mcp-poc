@@ -11,3 +11,6 @@ wheels/
 
 # Configuracion personal de VSCode
 .vscode/settings.json
+
+# Credenciales locales (Neo4j)
+.env

@@ -56,6 +56,26 @@ Servidor que consulta datos reales usando [ytmusicapi](https://ytmusicapi.readth
 
 > `ytmusicapi` es una librería no oficial: puede dejar de funcionar si YouTube Music cambia su web.
 
+### 🕸️ Music Knowledge Graph — `src/music-graph.py`
+
+Lleva los resultados de YouTube Music a un **knowledge graph** en [Neo4j](https://neo4j.com/). En vez de devolver listas sueltas, guarda artistas, canciones y álbumes como nodos conectados, de modo que el modelo puede hacer preguntas sobre las *relaciones* ("¿con quién colaboró este artista?", "¿qué artistas están a dos grados de Bad Bunny?").
+
+```
+(:Artist {name, id})-[:PERFORMED]->(:Song {id, title, duration, url})
+(:Song)-[:APPEARS_ON]->(:Album {id, title, year, url})
+(:Artist)-[:RELEASED]->(:Album)
+```
+
+| Herramienta | Parámetros | Descripción |
+|---|---|---|
+| `ingest_songs` | `query`, `limit` | Busca canciones y las guarda con sus artistas y álbumes (`MERGE`, así que repetir no duplica) |
+| `ingest_albums` | `query`, `max_results` | Busca álbumes y los guarda con sus artistas |
+| `get_graph_schema` | — | Etiquetas, tipos de relación, conteos y patrones del grafo |
+| `artist_network` | `artist`, `max_hops` | Artistas conectados por canciones compartidas, hasta N grados |
+| `run_cypher_read` | `cypher`, `params` | Ejecuta Cypher de **solo lectura** (Neo4j rechaza escrituras); máx. 50 filas |
+
+También expone el *prompt* `explore_artist`, que guía al agente por el flujo completo: ingerir → ver esquema → explorar colaboraciones.
+
 ## Estructura del proyecto
 
 ```
@@ -63,9 +83,11 @@ mcp-poc/
 ├── src/
 │   ├── fastmcp-calculator.py   # Servidor MCP: calculadora
 │   ├── ytmusic-finder.py       # Servidor MCP: búsqueda en YouTube Music
+│   ├── music-graph.py          # Servidor MCP: knowledge graph en Neo4j
 │   └── mcp_poc/                # Paquete del proyecto (placeholder)
 ├── .vscode/
 │   └── mcp.json                # Configuración de los servidores para VS Code
+├── .env.example                # Variables de conexión a Neo4j (copiar a .env)
 ├── pyproject.toml              # Dependencias y metadatos
 └── uv.lock                     # Versiones exactas de las dependencias
 ```
@@ -134,6 +156,17 @@ uv sync
 
 `uv sync` crea el entorno virtual `.venv/` e instala todas las dependencias con las versiones exactas de `uv.lock`. Si no tienes Python 3.14, `uv` lo descarga automáticamente.
 
+### Neo4j (solo para `music-graph`)
+
+```bash
+docker run -d --name neo4j -p 7474:7474 -p 7687:7687 \
+  -e NEO4J_AUTH=neo4j/tu-password -v neo4j-data:/data neo4j:latest
+
+cp .env.example .env   # y pon la misma password en NEO4J_PASSWORD
+```
+
+El navegador de Neo4j queda en <http://localhost:7474> para ver el grafo (`MATCH (n) RETURN n LIMIT 100`). `.env` está en `.gitignore`.
+
 ### Comprobar que funciona
 
 Sin conectar ningún cliente, puedes listar y llamar herramientas desde la terminal con la CLI de FastMCP:
@@ -147,6 +180,14 @@ uv run fastmcp call src/fastmcp-calculator.py multiply a=10 b=10
 # → { "result": 100.0 }
 
 uv run fastmcp call src/ytmusic-finder.py search_albums query="Soda Stereo" max_results=2
+```
+
+`music-graph` necesita las variables de `.env`. La CLI lanza el servidor como subproceso con un entorno filtrado, así que hay que pasarle el comando completo con `uv run --env-file`:
+
+```bash
+uv run fastmcp call \
+  --command 'uv run --env-file .env fastmcp run src/music-graph.py -t stdio --no-banner' \
+  --target ingest_songs --input-json '{"query": "Gustavo Cerati", "limit": 10}'
 ```
 
 Para explorarlos con una interfaz web, usa el **MCP Inspector** (requiere Node.js):
@@ -222,6 +263,12 @@ Desde la raíz del proyecto:
 claude mcp add ytmusic-finder -- uv run --directory "$(pwd)" fastmcp run src/ytmusic-finder.py -t stdio --no-banner
 ```
 
+Para `music-graph`, añade `--env-file .env` a `uv run`:
+
+```bash
+claude mcp add music-graph -- uv run --directory "$(pwd)" --env-file .env fastmcp run src/music-graph.py -t stdio --no-banner
+```
+
 Abre una sesión nueva de Claude Code y comprueba con `/mcp` que el servidor aparece como conectado.
 
 ## Problemas conocidos
@@ -230,12 +277,15 @@ Abre una sesión nueva de Claude Code y comprueba con `/mcp` que el servidor apa
 |---|---|
 | `TypeError: Server.__init__() takes 2 positional arguments but 3 were given` | Algunas librerías construidas sobre el SDK de MCP (como `fastapi-mcp` 0.4) no son compatibles con `mcp` 2.x. Por eso `pyproject.toml` fija `mcp<2`, que además es lo que exige `fastmcp` 3.x. |
 | El cliente no encuentra `uv` | Usa la ruta absoluta del ejecutable en la configuración del cliente. |
+| `music-graph`: `Unsupported authentication token, missing key credentials` | El servidor arrancó sin `NEO4J_PASSWORD`. Los clientes MCP no heredan tu entorno: usa `uv run --env-file .env`. |
 | El servidor arranca pero el cliente no ve herramientas | En stdio, cualquier `print()` a stdout corrompe el protocolo. Usa `--no-banner` y escribe los logs en stderr. |
 
 ## Recursos
 
 - [Especificación de MCP](https://modelcontextprotocol.io/)
 - [Documentación de FastMCP](https://gofastmcp.com/)
+- [Cypher Manual](https://neo4j.com/docs/cypher-manual/current/) y [driver de Python para Neo4j](https://neo4j.com/docs/python-manual/current/)
+- [GraphAcademy de Neo4j](https://graphacademy.neo4j.com/) (cursos gratuitos)
 - [Documentación de ytmusicapi](https://ytmusicapi.readthedocs.io/)
 - [MCP en VS Code](https://code.visualstudio.com/docs/copilot/chat/mcp-servers)
 - [Python Course sobre MCP con freecodeCamp](https://www.youtube.com/watch?v=DosHnyq78xY)

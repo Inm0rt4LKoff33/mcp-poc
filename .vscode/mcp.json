@@ -29,6 +29,23 @@
         "stdio",
         "--no-banner"
       ]
+    },
+    "music-graph" : {
+      "type": "stdio",
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "${workspaceFolder}",
+        "--env-file",
+        ".env",
+        "fastmcp",
+        "run",
+        "src/music-graph.py",
+        "-t",
+        "stdio",
+        "--no-banner"
+      ]
     }
   }
 }
